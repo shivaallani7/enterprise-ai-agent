@@ -32,6 +32,11 @@ def _hash(pw: str) -> str:
 
 
 DEV_USERS: dict[str, dict] = {
+    "username": {
+        "password_hash": _hash("password"),
+        "display_name":  "Demo User",
+        "default_persona": "general",
+    },
     "shivaallani": {
         "password_hash": _hash("shivaallani"),
         "display_name":  "Shiva Allani",

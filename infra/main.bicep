@@ -15,12 +15,6 @@ param jiraProjectKey string
 @description('Jira user email for API authentication')
 param jiraUserEmail string
 
-@description('Azure Entra tenant ID')
-param entraTenantId string
-
-@description('Azure Entra client ID (app registration)')
-param entraClientId string
-
 @description('APIM publisher email')
 param publisherEmail string = 'admin@example.com'
 
@@ -120,8 +114,6 @@ module aca 'modules/containerapps.bicep' = {
     jiraBaseUrl: jiraBaseUrl
     jiraProjectKey: jiraProjectKey
     jiraUserEmail: jiraUserEmail
-    entraTenantId: entraTenantId
-    entraClientId: entraClientId
     corsOrigins: corsOrigins
     llmProvider: llmProvider
     openaiModel: openaiModel
@@ -136,8 +128,6 @@ module apim 'modules/apim.bicep' = {
     location: location
     tags: tags
     backendUrl: 'https://${aca.outputs.backendFqdn}'
-    entraTenantId: entraTenantId
-    entraClientId: entraClientId
     publisherEmail: publisherEmail
   }
 }

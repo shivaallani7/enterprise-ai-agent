@@ -58,6 +58,8 @@ export function DevLogin({ onLogin }: Props) {
             />
           </div>
 
+          <div style={styles.hint}>Hint: username / password</div>
+
           {error && <div style={styles.error}>{error}</div>}
 
           <button
@@ -97,6 +99,12 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 12px', borderRadius: 'var(--radius)',
     border: '1px solid var(--border)', background: 'var(--surface-2)',
     color: 'var(--text)', fontSize: '14px', outline: 'none',
+  },
+  hint: {
+    fontSize: '12px', color: 'var(--text-muted)',
+    background: 'var(--surface-2)', padding: '6px 10px',
+    borderRadius: 'var(--radius)', textAlign: 'center' as const,
+    fontFamily: 'monospace',
   },
   error: {
     fontSize: '13px', color: 'var(--danger)',

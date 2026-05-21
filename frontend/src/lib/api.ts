@@ -1,12 +1,6 @@
 /**
- * API client with auth token injection.
+ * API client with username/password auth token injection.
  */
-
-let tokenProvider: (() => Promise<string>) | null = null
-
-export function setTokenProvider(fn: () => Promise<string>) {
-  tokenProvider = fn
-}
 
 export interface DevSession {
   token: string
@@ -39,13 +33,9 @@ export function clearDevUsername() {
 }
 
 async function getToken(): Promise<string> {
-  if (import.meta.env.VITE_AUTH_DISABLED === 'true') {
-    const session = getDevSession()
-    if (!session) throw new Error('No user logged in')
-    return session.token
-  }
-  if (!tokenProvider) throw new Error('Token provider not set')
-  return tokenProvider()
+  const session = getDevSession()
+  if (!session) throw new Error('No user logged in')
+  return session.token
 }
 
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {

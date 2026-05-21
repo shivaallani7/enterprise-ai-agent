@@ -17,8 +17,6 @@ param aoaiEndpoint string
 param jiraBaseUrl string
 param jiraProjectKey string
 param jiraUserEmail string
-param entraTenantId string
-param entraClientId string
 // Non-secret deployment config
 param aoaiDeployment string = 'gpt-4o'
 param aoaiEmbeddingDeployment string = 'text-embedding-3-large'
@@ -151,8 +149,6 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'JIRA_BASE_URL', value: jiraBaseUrl }
           { name: 'JIRA_PROJECT_KEY', value: jiraProjectKey }
           { name: 'JIRA_USER_EMAIL', value: jiraUserEmail }
-          { name: 'ENTRA_TENANT_ID', value: entraTenantId }
-          { name: 'ENTRA_CLIENT_ID', value: entraClientId }
           // KEY_VAULT_URL enables the app to pull secrets (keys, tokens) at startup
           { name: 'KEY_VAULT_URL', value: keyVaultUri }
           { name: 'APP_ENVIRONMENT', value: 'production' }

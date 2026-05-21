@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { useMsal, useIsAuthenticated } from '@azure/msal-react'
 import { useJiraStories } from './hooks/useJiraStories'
 import { StorySidebar } from './components/StorySidebar'
 import { StoryTab } from './components/StoryTab'
@@ -8,66 +7,22 @@ import { Dashboard } from './components/Dashboard'
 import { ProfileModal } from './components/ProfileModal'
 import { IngestModal } from './components/IngestModal'
 import { DevLogin } from './components/DevLogin'
-import { loginRequest } from './lib/authConfig'
-import { setTokenProvider as setApiToken, getDevUsername, clearDevUsername, getDevSession, DevSession } from './lib/api'
-
-// Lazy-connect MSAL token to API client
-function useTokenProvider() {
-  const { instance, accounts } = useMsal()
-  React.useEffect(() => {
-    if (accounts.length === 0) return
-    setApiToken(async () => {
-      const result = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      })
-      return result.accessToken
-    })
-  }, [instance, accounts])
-}
+import { clearDevUsername, getDevSession, DevSession } from './lib/api'
 
 type ActiveTab = 'general' | 'dashboard' | string
 
-// Set VITE_AUTH_DISABLED=true in .env.local to skip MSAL login entirely.
-// The API client automatically sends "dev-token" when no token provider is set
-// and VITE_AUTH_DISABLED is true, matching the backend dev-token bypass.
-const AUTH_DISABLED = import.meta.env.VITE_AUTH_DISABLED === 'true'
-
 export default function App() {
-  const isAuthenticated = useIsAuthenticated()
-  const { instance } = useMsal()
   const [devSession, setDevSession] = useState<DevSession | null>(getDevSession)
 
-  if (AUTH_DISABLED) {
-    if (!devSession) {
-      return <DevLogin onLogin={session => setDevSession(session)} />
-    }
-    return (
-      <AuthenticatedApp
-        devUsername={devSession.display_name}
-        onDevLogout={() => { clearDevUsername(); setDevSession(null) }}
-      />
-    )
+  if (!devSession) {
+    return <DevLogin onLogin={session => setDevSession(session)} />
   }
 
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => instance.loginRedirect(loginRequest)} />
-  }
-
-  return <AuthenticatedApp />
-}
-
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
-    <div style={loginStyles.root}>
-      <div style={loginStyles.card}>
-        <h1 style={loginStyles.title}>Enterprise AI Agent</h1>
-        <p style={loginStyles.subtitle}>Jira-aware coding assistant for your team</p>
-        <button style={loginStyles.btn} onClick={onLogin}>
-          Sign in with Microsoft
-        </button>
-      </div>
-    </div>
+    <AuthenticatedApp
+      devUsername={devSession.display_name}
+      onDevLogout={() => { clearDevUsername(); setDevSession(null) }}
+    />
   )
 }
 
@@ -77,7 +32,6 @@ interface AuthenticatedAppProps {
 }
 
 function AuthenticatedApp({ devUsername, onDevLogout }: AuthenticatedAppProps) {
-  useTokenProvider()
   const { stories, loading, error: storiesError, refetch } = useJiraStories()
   const [activeTab, setActiveTab] = useState<ActiveTab>('general')
   const [showProfile, setShowProfile] = useState(false)
@@ -88,7 +42,6 @@ function AuthenticatedApp({ devUsername, onDevLogout }: AuthenticatedAppProps) {
 
   return (
     <div style={appStyles.root}>
-      {/* Top bar */}
       <header style={appStyles.topbar}>
         <span style={appStyles.logo}>Enterprise AI Agent</span>
         <nav style={appStyles.topNav}>
@@ -164,44 +117,6 @@ function AuthenticatedApp({ devUsername, onDevLogout }: AuthenticatedAppProps) {
       </div>
     </div>
   )
-}
-
-const loginStyles: Record<string, React.CSSProperties> = {
-  root: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'var(--bg)',
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: '12px',
-    padding: '48px',
-    textAlign: 'center',
-    maxWidth: '400px',
-    width: '100%',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 700,
-    marginBottom: '8px',
-  },
-  subtitle: {
-    color: 'var(--text-muted)',
-    marginBottom: '32px',
-    fontSize: '15px',
-  },
-  btn: {
-    background: 'var(--primary)',
-    color: '#fff',
-    padding: '12px 32px',
-    borderRadius: 'var(--radius)',
-    fontWeight: 600,
-    fontSize: '15px',
-    transition: 'background 0.15s',
-  },
 }
 
 const appStyles: Record<string, React.CSSProperties> = {

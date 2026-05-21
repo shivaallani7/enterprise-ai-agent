@@ -2,8 +2,6 @@ param name string
 param location string
 param tags object
 param backendUrl string
-param entraTenantId string
-param entraClientId string
 param publisherEmail string = 'admin@example.com'
 
 resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
@@ -49,7 +47,7 @@ resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-09-01-pre
   name: 'policy'
   properties: {
     format: 'rawxml'
-    value: '<policies><inbound><base /><validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized"><openid-config url="${environment().authentication.loginEndpoint}${entraTenantId}/v2.0/.well-known/openid-configuration" /><audiences><audience>api://${entraClientId}</audience></audiences></validate-jwt><set-backend-service backend-id="agent-backend" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
+    value: '<policies><inbound><base /><set-backend-service backend-id="agent-backend" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
   }
 }
 

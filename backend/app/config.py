@@ -62,9 +62,9 @@ class Settings(BaseSettings):
     github_app_private_key: str = ""
     github_webhook_secret: str = ""
 
-    # Auth (Azure Entra ID)
-    entra_tenant_id: str
-    entra_client_id: str
+    # Auth (unused — app uses username/password via /api/auth/login)
+    entra_tenant_id: str = ""
+    entra_client_id: str = ""
     entra_client_secret: str = ""
 
     # Application Insights
