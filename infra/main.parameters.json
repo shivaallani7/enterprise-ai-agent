@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName":  { "value": "${AZURE_ENV_NAME}" },
+    "location":         { "value": "${AZURE_LOCATION}" },
+    "jiraBaseUrl":      { "value": "${JIRA_BASE_URL}" },
+    "jiraProjectKey":   { "value": "${JIRA_PROJECT_KEY}" },
+    "jiraUserEmail":    { "value": "${JIRA_USER_EMAIL}" },
+    "entraTenantId":    { "value": "${AZURE_TENANT_ID}" },
+    "entraClientId":    { "value": "${ENTRA_CLIENT_ID}" },
+    "publisherEmail":   { "value": "${PUBLISHER_EMAIL}" },
+    "llmProvider":      { "value": "${LLM_PROVIDER}" },
+    "openaiModel":      { "value": "${OPENAI_MODEL}" }
+  }
+}

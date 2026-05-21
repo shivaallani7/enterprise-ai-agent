@@ -1,0 +1,28 @@
+metrics:
+  faithfulness:
+    threshold: 0.85
+    description: "Answer is grounded in retrieved context, no hallucinations."
+
+  answer_relevancy:
+    threshold: 0.80
+    description: "Answer directly addresses the question asked."
+
+  context_recall:
+    threshold: 0.75
+    description: "Retrieved context covers the ground truth answer."
+
+  context_precision:
+    threshold: 0.75
+    description: "Retrieved context is relevant (low noise)."
+
+notifications:
+  fail_on_regression: true
+  post_pr_comment: true
+  comment_template: |
+    ## RAGAS Evaluation Results
+
+    | Metric | Score | Threshold | Status |
+    |--------|-------|-----------|--------|
+    {rows}
+
+    {summary}

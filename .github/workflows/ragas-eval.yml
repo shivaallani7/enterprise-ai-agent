@@ -1,0 +1,176 @@
+name: RAGAS Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  ragas:
+    name: Run RAGAS metrics
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      # Start the backend so the eval pipeline can hit /api/chat to
+      # generate agent answers for each golden Q&A pair.
+      # APP_ENVIRONMENT=development enables the dev-token bypass in deps.py.
+      - name: Start backend
+        working-directory: backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          # Poll /health until ready (up to 30 s)
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend ready after ${i}s"; break
+            fi
+            sleep 1
+          done
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o' }}
+          AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.AZURE_OPENAI_EMBEDDING_DEPLOYMENT || 'text-embedding-3-large' }}
+          AZURE_OPENAI_API_VERSION: '2024-05-01-preview'
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
+          COSMOS_ENDPOINT: ${{ secrets.COSMOS_ENDPOINT }}
+          COSMOS_KEY: ${{ secrets.COSMOS_KEY }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
+          ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
+          APP_ENVIRONMENT: development   # enables dev-token bypass for eval calls
+          LOG_LEVEL: WARNING
+
+      # Run RAGAS — metrics require Azure OpenAI for LLM-graded scoring
+      # (faithfulness and answer_relevancy call GPT-4o under the hood).
+      # The pipeline exits 1 if any metric falls below its threshold.
+      - name: Run RAGAS evaluation
+        id: ragas
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python -m ragas_eval.eval_pipeline 2>&1 | tee ragas_output.txt
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o' }}
+          AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${{ vars.AZURE_OPENAI_EMBEDDING_DEPLOYMENT || 'text-embedding-3-large' }}
+          AZURE_OPENAI_API_VERSION: '2024-05-01-preview'
+          COSMOS_ENDPOINT: ${{ secrets.COSMOS_ENDPOINT }}
+          COSMOS_KEY: ${{ secrets.COSMOS_KEY }}
+          EVAL_API_BASE: http://localhost:8000
+          EVAL_API_TOKEN: dev-token
+          RAGAS_OUTPUT: ragas_result.json
+
+      # Always upload the JSON result so it's available for debugging
+      # even when the job fails.
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ragas-result-${{ github.event.pull_request.number }}
+          path: backend/ragas_result.json
+          if-no-files-found: warn
+
+      # Post (or update) a single comment on the PR with the metric table.
+      # Uses list-then-upsert to avoid spamming a new comment on every run.
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        if: always() && github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+
+            let body;
+            const resultPath = 'backend/ragas_result.json';
+
+            if (fs.existsSync(resultPath)) {
+              const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+
+              if (result.note === 'no golden data') {
+                body = [
+                  '## RAGAS Evaluation',
+                  '',
+                  '> No golden dataset found — evaluation skipped.',
+                  '> Run `python -m ragas_eval.dataset_builder` to seed the dataset,',
+                  '> or submit a corrected response via the feedback widget to create entries automatically.',
+                ].join('\n');
+              } else {
+                const rows = Object.entries(result.scores || {}).map(([metric, data]) => {
+                  const icon = data.passed ? '✅' : '❌';
+                  return `| \`${metric}\` | ${data.score.toFixed(4)} | ≥ ${data.threshold} | ${icon} |`;
+                }).join('\n');
+
+                const summary = result.passed
+                  ? '**All metrics passed ✅ — merge is unblocked.**'
+                  : '**One or more metrics failed ❌ — merge is blocked until scores improve.**';
+
+                body = [
+                  '## RAGAS Evaluation',
+                  '',
+                  '| Metric | Score | Threshold | Status |',
+                  '|--------|------:|-----------|--------|',
+                  rows,
+                  '',
+                  summary,
+                ].join('\n');
+              }
+            } else {
+              const rawPath = 'backend/ragas_output.txt';
+              const raw = fs.existsSync(rawPath)
+                ? fs.readFileSync(rawPath, 'utf8').slice(-2000)
+                : 'No output captured.';
+              body = [
+                '## RAGAS Evaluation — Error',
+                '',
+                'Evaluation did not produce a result file. Last output:',
+                '```',
+                raw,
+                '```',
+              ].join('\n');
+            }
+
+            // Find existing RAGAS comment to update, or create a new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.startsWith('## RAGAS Evaluation')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

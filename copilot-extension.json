@@ -1,0 +1,17 @@
+{
+  "name": "enterprise-ai-agent",
+  "description": "Jira-aware AI coding assistant for the Fidelity Workplace Investments team. Answers questions about your current story, searches the codebase, and queries project documentation.",
+  "version": "1.0.0",
+  "homepage_url": "https://your-aca-domain.azurecontainerapps.io",
+  "callback_url": "https://your-aca-domain.azurecontainerapps.io/api/copilot",
+  "request_url": "https://your-aca-domain.azurecontainerapps.io/api/copilot",
+  "manifest_url": "https://your-aca-domain.azurecontainerapps.io/api/copilot/manifest",
+  "integration_type": "agent",
+  "scopes": ["copilot"],
+  "events": [],
+  "permissions": {
+    "contents": "read",
+    "pull_requests": "read",
+    "issues": "read"
+  }
+}

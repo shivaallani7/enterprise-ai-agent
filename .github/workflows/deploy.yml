@@ -1,0 +1,42 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: azd up
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install azd
+        uses: Azure/setup-azd@v1
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: azd env set
+        run: |
+          azd env new ${{ vars.AZD_ENV_NAME || 'production' }}
+          azd env set AZURE_OPENAI_ENDPOINT "${{ secrets.AZURE_OPENAI_ENDPOINT }}"
+          azd env set JIRA_BASE_URL "${{ secrets.JIRA_BASE_URL }}"
+          azd env set JIRA_API_TOKEN "${{ secrets.JIRA_API_TOKEN }}"
+          azd env set JIRA_PROJECT_KEY "${{ secrets.JIRA_PROJECT_KEY }}"
+          azd env set JIRA_USER_EMAIL "${{ secrets.JIRA_USER_EMAIL }}"
+          azd env set ENTRA_TENANT_ID "${{ secrets.ENTRA_TENANT_ID }}"
+          azd env set ENTRA_CLIENT_ID "${{ secrets.ENTRA_CLIENT_ID }}"
+
+      - name: azd up (provision + deploy)
+        run: azd up --no-prompt

@@ -1,0 +1,41 @@
+name: enterprise-ai-agent
+metadata:
+  template: enterprise-ai-agent@1.0.0
+
+services:
+  backend:
+    project: ./backend
+    language: py
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+
+  frontend:
+    project: ./frontend
+    language: ts
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+hooks:
+  postprovision:
+    # Populate Key Vault with secrets from azd environment variables.
+    # Requires AZURE_OPENAI_API_KEY, AZURE_SEARCH_API_KEY, COSMOS_KEY,
+    # JIRA_API_TOKEN, and ENTRA_CLIENT_SECRET to be set via `azd env set`.
+    posix:
+      shell: sh
+      run: ./scripts/postprovision.sh
+      interactive: false
+      continueOnError: false
+    windows:
+      shell: pwsh
+      run: ./scripts/postprovision.ps1
+      interactive: false
+      continueOnError: false

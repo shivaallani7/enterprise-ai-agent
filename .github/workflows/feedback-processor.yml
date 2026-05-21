@@ -1,0 +1,42 @@
+name: Weekly Feedback Processor
+
+# Runs every Monday at 02:00 UTC.
+# Promotes SME-corrected thumbs-down responses from the last 7 days
+# into the RAGAS golden dataset so the next PR eval uses fresh ground-truth.
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: 'How many days of feedback to process'
+        required: false
+        default: '7'
+
+permissions:
+  contents: read
+
+jobs:
+  process:
+    name: Promote feedback to golden dataset
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run feedback processor
+        working-directory: backend
+        run: python -m ragas_eval.feedback_processor
+        env:
+          COSMOS_ENDPOINT: ${{ secrets.COSMOS_ENDPOINT }}
+          COSMOS_KEY: ${{ secrets.COSMOS_KEY }}
+          COSMOS_DATABASE: ${{ vars.COSMOS_DATABASE || 'agent-db' }}

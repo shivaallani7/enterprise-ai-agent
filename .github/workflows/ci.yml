@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend-lint:
+    name: Backend lint & type check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dev dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install ruff mypy types-PyYAML
+
+      - name: Ruff lint
+        run: ruff check backend/app backend/ragas_eval backend/scripts
+
+      - name: Ruff format check
+        run: ruff format --check backend/app backend/ragas_eval backend/scripts
+
+      - name: Mypy type check
+        run: |
+          cd backend
+          mypy app --ignore-missing-imports --no-error-summary
+        continue-on-error: true   # type errors are warnings for now; tighten later
+
+  frontend-lint:
+    name: Frontend lint & type check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: TypeScript type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
